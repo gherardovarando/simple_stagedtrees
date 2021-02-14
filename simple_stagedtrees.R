@@ -9,7 +9,7 @@ simplify <- function(model){
 }
 
 ### 
-simple_forward <- function(data, lambda = 1, order = NULL,
+simple_marginal <- function(data, lambda = 1, order = NULL,
                        search = c("bhc", "fbhc", "bj", 'hclust', 'kmeans'),
                        ...){
   alg <- switch(search[1],
@@ -32,16 +32,13 @@ simple_forward <- function(data, lambda = 1, order = NULL,
   for (i in 2:length(order)){
     v <- order[i]
     lv <- length(model$tree[[order[i-1]]])
-    os <- model$stages[[v]] == model$name_unobserved[1]
+    #os <- model$stages[[v]] == model$name_unobserved[1]
     if (i > 2) model$stages[[v]] <- 
         vapply(model$stages[[order[i-1]]], function(s){
           paste0(s, 1:lv)
         }, FUN.VALUE = rep("1", lv))[TRUE]
-    model$stages[[v]][os] <- model$name_unobserved[1]
-    #print(model$stages[[v]])
+    #model$stages[[v]][os] <- model$name_unobserved[1]
     model <- sevt_fit(model, data = data, lambda = lambda)
-    print(v)
-    print(model$stages)
     model <- alg(model, scope = v, ...) 
   }
   model <- stndnaming(model)
@@ -49,33 +46,63 @@ simple_forward <- function(data, lambda = 1, order = NULL,
 }
 
 
-## change to path of FallEld.rds 
-fall_eld <- readRDS(file = "FallEld.rds")
-order <- c("A", "R", "T", "answer")
-
-model <- simple_forward(data = fall_eld, lambda = 1, order = order, search = "kmeans", k = 2) %>% stndnaming(uniq = TRUE) 
-
-#png(file = "fall-plot-nested.png", width = 1000, height = 2000, res = 200)
-plot(model)
-#dev.off()
-
-ceg <- ceg(model)
-Adj <- ceg2adjmat(ceg)
-g <- graph_from_adjacency_matrix(Adj)
-plot(g, layout = layout_as_tree, edge.arrow.size = 0.2)
 
 
-### Titanic
+join_positions <- function(model, v, s1, s2){
+  i <- which(v == names(model$tree))
+  order <- names(model$tree)
+  model <- join_stages(model, v, s1, s2)
+  if (i == length(model$tree)) return(model)
+  for (j in (i+1):length(model$tree)){
+    w <- names(model$tree)[j]
+    lv <- length(model$tree[[j-1]])
+    model$stages[[w]] <- 
+      vapply(model$stages[[order[j-1]]], function(s){
+        paste0(s, 1:lv)
+      }, FUN.VALUE = rep("1", lv))[TRUE]
+  }
+  return(sevt_fit(model))
+}
 
-model1 <- stages_bhc(full(Titanic))
-simplified1 <- simplify(model1)
-model1
-model2 <- simple_forward(Titanic, search = "bhc")
 
-model2
-plot(model2)
 
-ceg <- ceg(model2)
-Adj <- ceg2adjmat(ceg)
-g <- graph_from_adjacency_matrix(Adj)
-plot(g, layout = layout_as_tree, edge.arrow.size = 0.2)
+simple_total_bhc <- function (object, score = function(x) {
+  return(-BIC(x))
+}, max_iter = Inf) {
+  now_score <- score(object)
+  scope <- names(object$tree)[-1]
+  for (v in scope) {
+    r <- 1
+    iter <- 0
+    done <- FALSE
+    while (!done && iter < max_iter) {
+      iter <- iter + 1
+      temp <- object
+      temp_score <- now_score
+      done <- TRUE
+      stages <- unique(object$stages[[v]])
+      if (length(stages) > 1) {
+        for (i in 2:length(stages)) {
+          s1 <- stages[i]
+          for (j in 1:(i - 1)) {
+            s2 <- stages[j]
+            try <- join_positions(object, v, s1, s2)
+            try_score <- score(try)
+            if (try_score >= temp_score) {
+              temp <- try
+              temp_score <- try_score
+              s1a <- s1
+              s2a <- s2
+              done <- FALSE
+            }
+          }
+        }
+      }
+      object <- temp
+      now_score <- temp_score
+    }
+  }
+  object$call <- sys.call()
+  object$score <- list(value = now_score, f = score)
+  return(object)
+}
