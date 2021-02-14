@@ -2,9 +2,14 @@ library(igraph)
 library(stagedtrees)
 library(magrittr)
 
+simplify <- function(model){
+  tmp_ceg <- stagedtrees::ceg(model)
+  model$stages <- tmp_ceg$positions[-1]
+  return(stagedtrees::sevt_fit(model))
+}
 
 ### 
-simple_forward <- function(data, lambda = 1, order = colnames(data),
+simple_forward <- function(data, lambda = 1, order = NULL,
                        search = c("bhc", "fbhc", "bj", 'hclust', 'kmeans'),
                        ...){
   alg <- switch(search[1],
@@ -15,7 +20,15 @@ simple_forward <- function(data, lambda = 1, order = colnames(data),
     kmeans = stages_kmeans,
     NULL
   )
-  model <- sevt(data, order = order)
+  if (is.null(order)){
+    if (is.table(data)){
+      order <- names(dimnames(data))
+    }else if(is.data.frame(data)){
+      order <- colnames(data)
+    }
+  }
+  model <- sevt(data, order = order, full = TRUE)
+  order <- names(model$tree)
   for (i in 2:length(order)){
     v <- order[i]
     lv <- length(model$tree[[order[i-1]]])
@@ -27,6 +40,8 @@ simple_forward <- function(data, lambda = 1, order = colnames(data),
     model$stages[[v]][os] <- model$name_unobserved[1]
     #print(model$stages[[v]])
     model <- sevt_fit(model, data = data, lambda = lambda)
+    print(v)
+    print(model$stages)
     model <- alg(model, scope = v, ...) 
   }
   model <- stndnaming(model)
@@ -45,6 +60,22 @@ plot(model)
 #dev.off()
 
 ceg <- ceg(model)
+Adj <- ceg2adjmat(ceg)
+g <- graph_from_adjacency_matrix(Adj)
+plot(g, layout = layout_as_tree, edge.arrow.size = 0.2)
+
+
+### Titanic
+
+model1 <- stages_bhc(full(Titanic))
+simplified1 <- simplify(model1)
+model1
+model2 <- simple_forward(Titanic, search = "bhc")
+
+model2
+plot(model2)
+
+ceg <- ceg(model2)
 Adj <- ceg2adjmat(ceg)
 g <- graph_from_adjacency_matrix(Adj)
 plot(g, layout = layout_as_tree, edge.arrow.size = 0.2)
