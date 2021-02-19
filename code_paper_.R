@@ -266,8 +266,8 @@ pos <- rbind(pos,c(num_positions(simple_ksl),num_positions(simplified_ksl),num_p
 
 ## TABLE CONSTRUCTION ##
 rownames(bic) <- rownames(pos) <- c("coronary","chds","phd","cachexia","mathmarks","titanic","asia","falleld","ksl")
-bic
-pos
+print(bic)
+print(pos)
 
 ## CHDS PLOTS
 plot(dag_chds)
