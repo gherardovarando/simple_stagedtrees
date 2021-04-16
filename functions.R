@@ -7,7 +7,7 @@ simplify <- function(model){
   return(stagedtrees::sevt_fit(model))
 }
 
-simple_marginal <- function(data, lambda = 1, order = NULL,
+simple_marginal <- function(object,
                             search = c("bhc", "fbhc", "bj", 'hclust', 'kmeans'),
                             ...){
   alg <- switch(search[1],
@@ -18,14 +18,8 @@ simple_marginal <- function(data, lambda = 1, order = NULL,
                 kmeans = stages_kmeans,
                 NULL
   )
-  if (is.null(order)){
-    if (is.table(data)){
-      order <- names(dimnames(data))
-    }else if(is.data.frame(data)){
-      order <- colnames(data)
-    }
-  }
-  model <- sevt(data, order = order, full = TRUE)
+
+  
   order <- names(model$tree)
   for (i in 2:length(order)){
     v <- order[i]

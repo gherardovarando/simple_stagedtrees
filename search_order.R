@@ -1,4 +1,4 @@
-search_all_order <- function(data, alg = stages_bhc, start = full, score = BIC){
+all_orders <- function(data, alg = stages_bhc, start = full){
   if (is.data.frame(data)){
     vv <- colnames(data)
   }
@@ -9,7 +9,6 @@ search_all_order <- function(data, alg = stages_bhc, start = full, score = BIC){
     alg(start(data, order =  order))
   })    
   scores <- sapply(allres, BIC)
-  #return(allres[[which.min(scores)]]()
   return(allres)
 }
 
