@@ -19,22 +19,21 @@ simple_marginal <- function(object,
                 NULL
   )
 
-  
-  order <- names(model$tree)
+  order <- names(object$tree)
   for (i in 2:length(order)){
     v <- order[i]
-    lv <- length(model$tree[[order[i-1]]])
-    #os <- model$stages[[v]] == model$name_unobserved[1]
-    if (i > 2) model$stages[[v]] <- 
-      vapply(model$stages[[order[i-1]]], function(s){
+    lv <- length(object$tree[[order[i-1]]])
+    #os <- object$stages[[v]] %in% object$name_unobserved
+    if (i > 2) object$stages[[v]] <- 
+      vapply(object$stages[[order[i-1]]], function(s){
         paste0(s, 1:lv)
       }, FUN.VALUE = rep("1", lv))[TRUE]
-    #model$stages[[v]][os] <- model$name_unobserved[1]
-    model <- sevt_fit(model, data = data, lambda = lambda)
-    model <- alg(model, scope = v, ...) 
+    #object$stages[[v]][os] <- object$name_unobserved[1]
+    object <- sevt_fit(object, data = data, lambda = lambda)
+    object <- alg(object, scope = v, ...) 
   }
-  model <- stndnaming(model)
-  return(model)
+  object <- stndnaming(object)
+  return(object)
 }
 
 join_positions <- function(model, v, s1, s2){

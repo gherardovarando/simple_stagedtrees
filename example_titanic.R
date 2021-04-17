@@ -5,7 +5,7 @@ simplified1 <- simplify(model1)
 model1
 plot(model1)
 
-model2 <- simple_marginal(Titanic, search = "bhc")
+model2 <- simple_marginal(Titanic, search = "hclust", k = 2)
 model2
 plot(model2)
 

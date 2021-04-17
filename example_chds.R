@@ -55,3 +55,16 @@ length(bests_cs)
 lapply(bests_cs, logLik)
 
 plot(bests_cs[[4]])
+
+
+#### 
+
+approx_best <- search_greedy(chds)
+alls <- all_orders(chds, alg = stages_bhc)
+
+bics <- sapply(alls, BIC)
+plot(bics)
+points(BIC(approx_best), col = "red")
+best <- alls[[which.min(bics)]]
+BIC(best)
+BIC(approx_best)
