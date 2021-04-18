@@ -79,19 +79,18 @@ results <- lapply(datasets, function(data){
               dag = dag_hc))
 })
 
-t(as.data.frame(lapply(results, function(x) sapply(x$models, BIC))))
+lapply(results, function(x) sapply(x$models, function(m) {
+  if (length(m) == 1) return(NA) else 
+    BIC(m) 
+}))
 
-## TABLE CONSTRUCTION ##
-rownames(bic) <- rownames(pos) <- c("coronary","chds","phd","cachexia","mathmarks","titanic","asia","falleld","ksl")
-print(bic)
-print(pos)
 
 ## CHDS PLOTS
-plot(dag_chds)
-plot(total_chds)
-ceg.plot(total_chds)
+plot(results$chds$dag)
+plot(results$chds$models$simple_total)
+ceg.plot(results$chds$models$simple_total)
 
-## CORONARY PLOTS
+## CORONARY PLOTS (TO DO)
 plot(dag_cor)
 plot(total_cor)
 ceg.plot(total_cor)
