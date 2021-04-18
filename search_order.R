@@ -1,4 +1,6 @@
-all_orders <- function(data, alg = stages_bhc){
+search_all <- function(data, alg = stages_bhc, 
+                       score = BIC,
+                       join_unobserved = TRUE, lambda = 0){
   if (is.data.frame(data)){
     vv <- colnames(data)
   }
@@ -6,14 +8,16 @@ all_orders <- function(data, alg = stages_bhc){
     vv <- names(dimnames(data))
   }
   allres <- combinat::permn(vv, fun = function(order){
-    alg(full(data, order =  order, join_unobserved = FALSE))
+    alg(full(data, order =  order, 
+             join_unobserved = join_unobserved, lambda = lambda), 
+             score = function(x) -score(x))
   })    
-  scores <- sapply(allres, BIC)
-  return(allres)
+  scores <- sapply(allres, score)
+  return(allres[[which.min(scores)]])
 }
 
 
-sevt_add <- function(object, var, data){
+sevt_add <- function(object, var, data, join_unobserved = TRUE){
   if (is.data.frame(data)) {
     data <- table(data[, c(names(object$tree), var)])
   }
@@ -35,13 +39,23 @@ sevt_add <- function(object, var, data){
     return(tt)
   })
   names(object$prob[[var]]) <- object$stages[[var]]
+  if (join_unobserved){
+    ix <- rowSums(ctable) == 0
+    if (any(ix)){
+      object$stages[[var]][ix] <- object$name_unobserved[1]
+      p.unobserved <- object$prob[[var]][ix][[1]]
+      object$prob[[var]][ix] <- NULL
+      object$prob[[var]][[object$name_unobserved[1]]] <- p.unobserved
+    }  
+  }
   object$ll <- NULL ## force recompute log-likelihood
   object$ll <- logLik(object)
   return(object)
 }
 
 ### should use github version in branch main
-search_greedy <- function(data, alg = stages_bhc, score = BIC){
+search_greedy <- function(data, alg = stages_bhc, score = BIC, lambda = 0, 
+                          join_unobserved = TRUE){
   if (is.data.frame(data)){
     vs <- colnames(data)
   }
@@ -49,11 +63,11 @@ search_greedy <- function(data, alg = stages_bhc, score = BIC){
     vs <- names(dimnames(data))
   }
   ## initialize best
-  best <- full(data, order = vs[1], join_unobserved = FALSE)
+  best <- full(data, order = vs[1], lambda = lambda, join_unobserved = join_unobserved)
   ## check all other possible first variable
   if (length(vs) < 2) return(best)
   for (v in vs){
-    tmp <- full(data, order = v, join_unobserved = FALSE)
+    tmp <- full(data, order = v, lambda =lambda, join_unobserved = join_unobserved)
     #print(score(tmp))
     if (score(tmp) < score(best)){
       best <- tmp
@@ -64,9 +78,13 @@ search_greedy <- function(data, alg = stages_bhc, score = BIC){
   svs <- vs[!(vs %in% names(object$tree))]
   for (i in seq_along(vs)[-1]){
     #done <- FALSE
-    best <- alg(sevt_add(object, svs[1], data), scope = svs[1])
+    best <- alg(sevt_add(object, svs[1], data, join_unobserved = join_unobserved), 
+                score = function(x){ return(-score(x))},
+                scope = svs[1])
     for (v in svs[-1]){
-      tmp <- alg(sevt_add(object, v, data), scope = v)
+      tmp <- alg(sevt_add(object, v, data, join_unobserved = join_unobserved), 
+                 score = function(x){-score(x)},
+                 scope = v)
       if (score(tmp) < score(best)){
         best <- tmp
         #done <- TRUE
@@ -79,14 +97,23 @@ search_greedy <- function(data, alg = stages_bhc, score = BIC){
   return(object)
 }
 
-bls <- function(data, left, new, alg, score = BIC, join_unobserved = FALSE){
-  m <- full(data = data, order = left, join_unobserved = FALSE)
+
+bls <- function(data, left, new, alg, score = BIC, lambda, join_unobserved){
+  m <- full(data = data, order = left, 
+            join_unobserved = join_unobserved,
+            lambda = lambda)
   s <- score(m)
-  m <- alg(sevt_add(m, new, data), scope = new)
+  m <- alg(sevt_add(m, new, data, join_unobserved = join_unobserved), scope = new, 
+           score = function(x){-score(x)})
   return(score(m) - s)
 }
 
-search_dynamic <- function(data, alg = stages_bhc, score = BIC){
+
+
+
+
+search_dynamic <- function(data, alg = stages_bhc, score = BIC, lambda = 0, 
+                           join_unobserved = TRUE){
   if (is.data.frame(data)){
     vs <- colnames(data)
   }
@@ -95,15 +122,18 @@ search_dynamic <- function(data, alg = stages_bhc, score = BIC){
   }
   ## initialize scores with 1 variables
   scores <- sapply(vs, FUN = function(vv){
-    score(full(data, order = vv, join_unobserved = FALSE))
-  },USE.NAMES = TRUE )
+    score(full(data, order = vv, join_unobserved = join_unobserved, 
+               lambda = lambda))
+  }, USE.NAMES = TRUE )
   sinks <- vs
   names(sinks) <- vs
   for (i in seq_along(vs)[-1]){
     sets <- combn(vs,i)
     tmp <- apply(sets, MARGIN = 2, FUN = function(W){
       sapply(W, function(v){
-        scores[paste(W[W!=v],collapse="-")] + bls(data, W[W!=v], v, alg, score)
+        scores[paste(W[W!=v],collapse="-")] + bls(data, W[W!=v], v, alg, score, 
+                                                  lambda = lambda,
+                                                  join_unobserved = join_unobserved)
       })
     })
     new_sinks <- sapply(seq(ncol(sets)), function(i) sets[which.min(tmp[,i]),i])
@@ -117,6 +147,7 @@ search_dynamic <- function(data, alg = stages_bhc, score = BIC){
     order[i] <- sinks[left]
     left <- paste(vs[!(vs %in% order)], collapse = "-")
   }
-  object <- alg(full(data, order = order, join_unobserved = FALSE))
+  object <- alg(full(data, order = order, join_unobserved = join_unobserved, 
+                     lambda = lambda))
   return(object)
 }
