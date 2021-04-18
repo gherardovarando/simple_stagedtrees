@@ -82,7 +82,7 @@ search_greedy <- function(data, alg = stages_bhc, search_score = BIC, lambda = 0
   ## check all other possible first variable
   if (length(vs) < 2) return(best)
   for (v in vs){
-    tmp <- full(data, order = v, lambda =lambda, join_unobserved = join_unobserved)
+    tmp <- full(data, order = v, lambda = lambda, join_unobserved = join_unobserved)
     #print(score(tmp))
     if (search_score(tmp) < search_score(best)){
       best <- tmp
@@ -94,7 +94,7 @@ search_greedy <- function(data, alg = stages_bhc, search_score = BIC, lambda = 0
   for (i in seq_along(vs)[-1]){
     #done <- FALSE
     best <- alg(sevt_add(object, svs[1], data, join_unobserved = join_unobserved),
-                scope = svs[1])
+                scope = svs[1], ...)
     for (v in svs[-1]){
       tmp <- alg(sevt_add(object, v, data, join_unobserved = join_unobserved), 
                  scope = v)

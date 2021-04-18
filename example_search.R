@@ -1,4 +1,4 @@
-data <- Titanic
+data <- PhDArticles
 system.time(best1 <- search_all(data, join_unobserved = TRUE))
 
 all <- all_orders(data = data, join_unobserved = TRUE)
@@ -13,9 +13,9 @@ range(bics)
 
 BIC(best2, approx_best)
 
-
-
-system.time(approx_best <- search_greedy(data,alg = simple_marginal, join_unobserved = FALSE))
+data <-readRDS("FallEld.rds")
+data <- coronary
+system.time(approx_best <- search_greedy(data,alg = simple_marginal, join_unobserved = TRUE))
 system.time(best <- search_all(data,alg = simple_marginal, join_unobserved = FALSE))
 
 plot(approx_best)

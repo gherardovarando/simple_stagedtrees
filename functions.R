@@ -8,17 +8,10 @@ simplify <- function(model){
 }
 
 simple_marginal <- function(object,
-                            search = c("bhc", "fbhc", "bj", 'hclust', 'kmeans'),
+                            alg = stages_bhc,
                             scope = NULL,
                             ...){
-  alg <- switch(search[1],
-                bhc = stages_bhc,
-                fbhc =  stages_fbhc,
-                bj = stages_bj,
-                hclust = stages_hclust,
-                kmeans = stages_kmeans,
-                NULL
-  )
+  
   if (is.null(scope)){
     scope <- names(object$tree)[-1]
   }
@@ -33,7 +26,7 @@ simple_marginal <- function(object,
         paste0(s, 1:lv)
       }, FUN.VALUE = rep("1", lv))[TRUE]
     object$stages[[v]][os] <- object$name_unobserved[1]
-    object <- sevt_fit(object, data = data, lambda = object$lambda)
+    object <- sevt_fit(object, lambda = object$lambda)
     object <- alg(object, scope = v, ...) 
   }
   object <- stndnaming(object)
