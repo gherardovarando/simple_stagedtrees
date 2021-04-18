@@ -79,10 +79,18 @@ results <- lapply(datasets, function(data){
               dag = dag_hc))
 })
 
-lapply(results, function(x) sapply(x$models, function(m) {
+table.BIC <- t(as.data.frame(lapply(results, function(x) sapply(x$models, function(m) {
   if (length(m) == 1) return(NA) else 
     BIC(m) 
-}))
+}))))
+
+saveRDS(table.BIC, file = "tableBIC.rds")
+
+
+table.time <- t(as.data.frame(lapply(results, function(x) sapply(x$time, function(m) {
+  if (length(m) == 1) return(NA) else 
+    m[3]
+}))))
 
 
 ## CHDS PLOTS
