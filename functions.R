@@ -9,6 +9,7 @@ simplify <- function(model){
 
 simple_marginal <- function(object,
                             search = c("bhc", "fbhc", "bj", 'hclust', 'kmeans'),
+                            scope = NULL,
                             ...){
   alg <- switch(search[1],
                 bhc = stages_bhc,
@@ -18,18 +19,21 @@ simple_marginal <- function(object,
                 kmeans = stages_kmeans,
                 NULL
   )
+  if (is.null(scope)){
+    scope <- names(object$tree)[-1]
+  }
 
   order <- names(object$tree)
-  for (i in 2:length(order)){
-    v <- order[i]
+  for (v in scope){
+    i <- seq_along(names(object$tree))[names(object$tree) == v]
     lv <- length(object$tree[[order[i-1]]])
-    #os <- object$stages[[v]] %in% object$name_unobserved
+    os <- object$stages[[v]] %in% object$name_unobserved
     if (i > 2) object$stages[[v]] <- 
       vapply(object$stages[[order[i-1]]], function(s){
         paste0(s, 1:lv)
       }, FUN.VALUE = rep("1", lv))[TRUE]
-    #object$stages[[v]][os] <- object$name_unobserved[1]
-    object <- sevt_fit(object, data = data, lambda = lambda)
+    object$stages[[v]][os] <- object$name_unobserved[1]
+    object <- sevt_fit(object, data = data, lambda = object$lambda)
     object <- alg(object, scope = v, ...) 
   }
   object <- stndnaming(object)
