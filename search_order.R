@@ -79,10 +79,10 @@ search_greedy <- function(data, alg = stages_bhc, score = BIC){
   return(object)
 }
 
-bls <- function(data, left, new, alg, score = BIC){
-  m <- full(data = data, order = left)
+bls <- function(data, left, new, alg, score = BIC, join_unobserved = FALSE){
+  m <- full(data = data, order = left, join_unobserved = FALSE)
   s <- score(m)
-  m <- sevt_add(m, new, data)
+  m <- alg(sevt_add(m, new, data), scope = new)
   return(score(m) - s)
 }
 
