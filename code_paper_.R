@@ -163,15 +163,16 @@ experiment_2 <- function(data, lambda = 0, r_train = 1, seed = 0){
 
 
 M <- 50
-N <- 500
-n <- 10
+N <- 200
+n <- 5
 p <- 0.3
 set.seed(0)
 results <- t(replicate(M, {
   true_simple <- random_simple_sevt(n, p)
   train <- sample_from(true_simple, nsim = N)
   test <- sample_from(true_simple, nsim = N)
-  res <- experiment_2(train, lambda = 1, r_train = 1)
+  train <- train[, sample(ncol(train))]
+  res <- experiment(train, lambda = 1, r_train = 1)
   res$models$true <- true_simple
   sapply(res$models, function(m) {
     if (length(m) == 1) return(NA) else 
@@ -180,4 +181,4 @@ results <- t(replicate(M, {
 }))
 
 colMeans(results)
-saveRDS(results, file = "simulation_results.rds")
+saveRDS(results, file = paste0(n, "_", N, "_", "simulation_results.rds"))
