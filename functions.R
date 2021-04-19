@@ -105,6 +105,7 @@ num_positions <- function(tree){
   }
   value
 }
+
 num_stages <- function(tree){
   value <- 1
   for(i in 1:length(tree$stages)){
