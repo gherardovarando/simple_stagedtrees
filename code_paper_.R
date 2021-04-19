@@ -136,3 +136,48 @@ plot(results$coronary$dag)
 plot(results$coronary$models$simple_total)
 ceg.plot(results$coronary$models$simple_total)
 
+
+
+############  simulation experiments 
+
+experiment_2 <- function(data, lambda = 0, r_train = 1, seed = 0){
+  set.seed(seed)
+  ix <- sample(seq(nrow(data)), size = nrow(data)*r_train)
+  train <- data[ix,]
+  test <-  data[-ix,]
+  print(colnames(data))
+  time.dag <- system.time(dag_hc <- bnlearn::hc(train))
+  dag_fitted <- bn.fit(dag_hc, data = train)
+  sevt_from_dag <- sevt_fit(as_sevt(dag_fitted), data = train, lambda = lambda)
+  time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = train,
+                                                                       alg = simple_marginal, join_unobserved = FALSE, lambda = lambda))
+  return(list(models = list(dag = sevt_from_dag, 
+                            greedy_marginal = greedy_marginal), 
+              time = list(
+                dag = time.dag,
+                greedy_marginal = time.greedy_marginal),
+              dag = dag_hc,
+              train = train,
+              test = test))
+}
+
+
+M <- 50
+N <- 500
+n <- 10
+p <- 0.3
+set.seed(0)
+results <- t(replicate(M, {
+  true_simple <- random_simple_sevt(n, p)
+  train <- sample_from(true_simple, nsim = N)
+  test <- sample_from(true_simple, nsim = N)
+  res <- experiment_2(train, lambda = 1, r_train = 1)
+  res$models$true <- true_simple
+  sapply(res$models, function(m) {
+    if (length(m) == 1) return(NA) else 
+      sum(stagedtrees::prob(m, test, log = TRUE)) 
+  })
+}))
+
+colMeans(results)
+saveRDS(results, file = "simulation_results.rds")
