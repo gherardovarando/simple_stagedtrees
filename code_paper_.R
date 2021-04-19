@@ -35,8 +35,7 @@ datasets <- list(
 )
 
 
-experiment <- function(data, lambda = 0, r_train = 1, seed = 0){
-  set.seed(seed)
+experiment <- function(data, lambda = 0, r_train = 1){
   ix <- sample(seq(nrow(data)), size = nrow(data)*r_train)
   train <- data[ix,]
   test <-  data[-ix,]
@@ -140,8 +139,7 @@ ceg.plot(results$coronary$models$simple_total)
 
 ############  simulation experiments 
 
-experiment_2 <- function(data, lambda = 0, r_train = 1, seed = 0){
-  set.seed(seed)
+experiment_2 <- function(data, lambda = 0, r_train = 1){
   ix <- sample(seq(nrow(data)), size = nrow(data)*r_train)
   train <- data[ix,]
   test <-  data[-ix,]
