@@ -43,17 +43,17 @@ results <- lapply(datasets, function(data){
   print(colnames(data))
   time.dag <- system.time(dag_hc <- bnlearn::hc(data))
   dag_fitted <- bn.fit(dag_hc, data = data)
-  sevt_from_dag <- sevt_fit(as_sevt(dag_fitted), data = data, lambda =0)
+  sevt_from_dag <- sevt_fit(as_sevt(dag_fitted), data = data, lambda = 0)
   order <- bnlearn::node.ordering(dag_hc)
-  time.simple_marginal <- system.time(marginal <- simple_marginal(full(data, order, join_unobserved = FALSE)))
-  time.simple_total <- system.time(total <- simple_total_bhc(full(data, order, join_unobserved = FALSE)))
-  time.sevt_bhc <- system.time(sevt_bhc <- stages_bhc(full(data, order, join_unobserved = TRUE)))
+  time.simple_marginal <- system.time(marginal <- simple_marginal(full(data, order, join_unobserved = FALSE, lambda = 0)))
+  time.simple_total <- system.time(total <- simple_total_bhc(full(data, order, join_unobserved = FALSE, lambda = 0)))
+  time.sevt_bhc <- system.time(sevt_bhc <- stages_bhc(stndnaming(stages_bhc(full(data, order, join_unobserved = TRUE, lambda = 0)), ignore = FALSE)))
   time.simplify <- system.time(simplified <- simplify(sevt_bhc))
   time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = data,
-                                                                       alg = simple_marginal, join_unobserved = FALSE))
+                                                                       alg = simple_marginal, join_unobserved = FALSE, lambda = 0))
   if (ncol(data)<7){
-    time.all_marginal <- system.time(all_marginal <- search_all(data, alg = simple_marginal, join_unobserved = FALSE)) 
-    time.all_total <- system.time(all_total <- search_all(data, alg = simple_total_bhc, join_unobserved = FALSE))
+    time.all_marginal <- system.time(all_marginal <- search_all(data, alg = simple_marginal, join_unobserved = FALSE, lambda = 0)) 
+    time.all_total <- system.time(all_total <- search_all(data, alg = simple_total_bhc, join_unobserved = FALSE, lambda = 0))
   }else{
     time.all_marginal <- time.all_total <- NA
     all_marginal <- all_total <- NA
@@ -83,7 +83,7 @@ table.BIC <- t(as.data.frame(lapply(results, function(x) sapply(x$models, functi
   if (length(m) == 1) return(NA) else 
     BIC(m) 
 }))))
-
+View(table.BIC)
 saveRDS(table.BIC, file = "tableBIC.rds")
 
 
@@ -94,7 +94,19 @@ table.time <- t(as.data.frame(lapply(results, function(x) sapply(x$time, functio
 
 saveRDS(table.time, file = "tabletime.rds")
 
+table.positions <- t(as.data.frame(lapply(results, function(x) sapply(x$models, function(m) {
+  if (length(m) == 1) return(NA) else 
+    num_positions(m)
+}))))
+saveRDS(table.positions, file = "tablepositions.rds")
+View(table.positions)
 
+table.stages <- t(as.data.frame(lapply(results, function(x) sapply(x$models, function(m) {
+  if (length(m) == 1) return(NA) else 
+    num_stages(m)
+}))))
+saveRDS(table.stages, file = "tablestages.rds")
+View(table.stages)
 ## CHDS PLOTS
 plot(results$chds$dag)
 plot(results$chds$models$simple_total)
