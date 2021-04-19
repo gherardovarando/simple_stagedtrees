@@ -45,15 +45,15 @@ results <- lapply(datasets, function(data){
   dag_fitted <- bn.fit(dag_hc, data = data)
   sevt_from_dag <- sevt_fit(as_sevt(dag_fitted), data = data, lambda =0)
   order <- bnlearn::node.ordering(dag_hc)
-  time.simple_marginal <- system.time(marginal <- simple_marginal(full(data, order, join_unobserved = TRUE)))
-  time.simple_total <- system.time(total <- simple_total_bhc(full(data, order, join_unobserved = TRUE)))
+  time.simple_marginal <- system.time(marginal <- simple_marginal(full(data, order, join_unobserved = FALSE)))
+  time.simple_total <- system.time(total <- simple_total_bhc(full(data, order, join_unobserved = FALSE)))
   time.sevt_bhc <- system.time(sevt_bhc <- stages_bhc(full(data, order, join_unobserved = TRUE)))
   time.simplify <- system.time(simplified <- simplify(sevt_bhc))
   time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = data,
-                                                                       alg = simple_marginal))
+                                                                       alg = simple_marginal, join_unobserved = FALSE))
   if (ncol(data)<7){
-    time.all_marginal <- system.time(all_marginal <- search_all(data, alg = simple_marginal)) 
-    time.all_total <- system.time(all_total <- search_all(data, alg = simple_total_bhc))
+    time.all_marginal <- system.time(all_marginal <- search_all(data, alg = simple_marginal, join_unobserved = FALSE)) 
+    time.all_total <- system.time(all_total <- search_all(data, alg = simple_total_bhc, join_unobserved = FALSE))
   }else{
     time.all_marginal <- time.all_total <- NA
     all_marginal <- all_total <- NA
