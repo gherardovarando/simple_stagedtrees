@@ -105,10 +105,72 @@ num_positions <- function(tree){
   }
   value
 }
+
 num_stages <- function(tree){
   value <- 1
   for(i in 1:length(tree$stages)){
     value <- value + length(unique(tree$stages[[i]]))
   }
   value
+}
+
+random_sevt <- function(n, k = 2){
+  tree <- sapply(paste0("X", seq(n)), function(x) c("0","1"), 
+                 USE.NAMES = TRUE, simplify = FALSE)
+  model <- sevt(tree)
+  model$stages <- lapply(model$stages, FUN = function(stages){
+    paste0(sample(1:k, size = length(stages), replace = TRUE))
+  })
+  model$prob <- list()
+  model$prob <- lapply(model$stages, function(stages){
+    sapply(unique(stages), FUN = function(s){
+      p <- runif(2) 
+      p <- p / sum(p)
+      names(p) <- c("0", "1")
+      attr(p, "n") <- 1
+      return(p)
+    }, simplify = FALSE, USE.NAMES = TRUE)
+  })
+  p <- runif(2) 
+  p <- p / sum(p)
+  names(p) <- c("0", "1")
+  attr(p, "n") <- 1
+  model$prob <- c(list("X1" = list("1" = p)), model$prob)
+  return(model)
+}
+
+random_simple_sevt <- function(n, p = 0.5){
+  tree <- sapply(paste0("X", seq(n)), function(x) c("0","1"), 
+                 USE.NAMES = TRUE, simplify = FALSE)
+  model <- sevt(tree)
+  model$stages$X2 <- sample(c("1", "2"), replace = TRUE)
+  for (i in seq_along(tree)[-1]){
+    v <- names(tree)[i]
+    lv <- length(tree[[i-1]])
+    if (i > 2) model$stages[[v]] <- 
+      vapply(model$stages[[names(tree)[i-1]]], function(s){
+        paste0(s, 1:lv)
+      }, FUN.VALUE = rep("1", lv))[TRUE]
+    for (s in unique(model$stages[[v]])){
+      if (runif(1) < p){
+        model$stages[[v]][model$stages[[v]] == s] <- sample(unique(model$stages[[v]]), size = 1) 
+      }
+    }
+  }
+  model$prob <- list()
+  model$prob <- lapply(model$stages, function(stages){
+    sapply(unique(stages), FUN = function(s){
+      p <- runif(2) 
+      p <- p / sum(p)
+      names(p) <- c("0", "1")
+      attr(p, "n") <- 1
+      return(p)
+    }, simplify = FALSE, USE.NAMES = TRUE)
+  })
+  p <- runif(2) 
+  p <- p / sum(p)
+  names(p) <- c("0", "1")
+  attr(p, "n") <- 1
+  model$prob <- c(list("X1" = list("1" = p)), model$prob)
+  return(model)
 }
