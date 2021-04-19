@@ -7,6 +7,10 @@ library(deal)
 source("functions.R")
 source("search_order.R")
 
+## change to TRUE to save results
+save <- FALSE
+
+
 titanic.df <- as.data.frame(Titanic)
 titanic.df <- titanic.df[rep(row.names(titanic.df), titanic.df$Freq), 1:4]
 
@@ -90,14 +94,14 @@ table.BIC <- t(as.data.frame(lapply(results, function(x) sapply(x$models, functi
     BIC(m) 
 }))))
 View(table.BIC)
-saveRDS(table.BIC, file = "tableBIC.rds")
+if (save) saveRDS(table.BIC, file = "tableBIC.rds")
 
 table.time <- t(as.data.frame(lapply(results, function(x) sapply(x$time, function(m) {
   if (length(m) == 1) return(NA) else 
     m[3]
 }))))
 
-saveRDS(table.time, file = "tabletime.rds")
+if (save) saveRDS(table.time, file = "tabletime.rds")
 
 table.positions <- t(as.data.frame(lapply(results, function(x) sapply(x$models, function(m) {
   if (length(m) == 1) return(NA) else 
@@ -161,22 +165,25 @@ experiment_2 <- function(data, lambda = 0, r_train = 1){
 
 
 M <- 50
-N <- 200
+N <-10000
+Ntest <- 500
 n <- 5
-p <- 0.3
+q <- 0.25
 set.seed(0)
 results <- t(replicate(M, {
-  true_simple <- random_simple_sevt(n, p)
-  train <- sample_from(true_simple, nsim = N)
-  test <- sample_from(true_simple, nsim = N)
+  true_simple <- random_simple_sevt(n, q)
+  plot(true_simple)
+  train <- as.data.frame(lapply(sample_from(true_simple, nsim = N), factor, levels = c("0","1")))
+  test <- as.data.frame(lapply(sample_from(true_simple, nsim = Ntest), factor, levels = c("0","1")))
   train <- train[, sample(ncol(train))]
   res <- experiment(train, lambda = 1, r_train = 1)
   res$models$true <- true_simple
   sapply(res$models, function(m) {
     if (length(m) == 1) return(NA) else 
+      #BIC(m)
       sum(stagedtrees::prob(m, test, log = TRUE)) 
   })
 }))
 
 colMeans(results)
-saveRDS(results, file = paste0(n, "_", N, "_", "simulation_results.rds"))
+if (save) saveRDS(results, file = paste0(n, "_", N, "_", "simulation_results.rds"))
