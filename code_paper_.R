@@ -51,7 +51,7 @@ results <- lapply(datasets, function(data){
   time.simplify <- system.time(simplified <- simplify(sevt_bhc))
   time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = data,
                                                                        alg = simple_marginal))
-  if (ncol(data)<6){
+  if (ncol(data)<7){
     time.all_marginal <- system.time(all_marginal <- search_all(data, alg = simple_marginal)) 
     time.all_total <- system.time(all_total <- search_all(data, alg = simple_total_bhc))
   }else{
@@ -91,6 +91,8 @@ table.time <- t(as.data.frame(lapply(results, function(x) sapply(x$time, functio
   if (length(m) == 1) return(NA) else 
     m[3]
 }))))
+
+saveRDS(table.time, file = "tabletime.rds")
 
 
 ## CHDS PLOTS
