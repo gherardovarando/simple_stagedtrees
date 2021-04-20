@@ -168,7 +168,7 @@ for (n in c(4,5,6,10)){
   M <- 100
   N <-100
   Ntest <- 500
-  n <- 5
+  #n <- 5
   q <- 0.3
   results <- t(replicate(M, {
     true_simple <- random_simple_sevt(n, q)
