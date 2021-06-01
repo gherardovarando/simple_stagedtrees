@@ -86,7 +86,6 @@ experiment <- function(data, lambda = 0, r_train = 1){
 
 
 ######## comparisons 
-
 results <- lapply(datasets, experiment, lambda = 0, r_train = 1)
 
 table.BIC <- t(as.data.frame(lapply(results, function(x) sapply(x$models, function(m) {
@@ -107,14 +106,14 @@ table.positions <- t(as.data.frame(lapply(results, function(x) sapply(x$models, 
   if (length(m) == 1) return(NA) else 
     num_positions(m)
 }))))
-saveRDS(table.positions, file = "tablepositions.rds")
+if (save) saveRDS(table.positions, file = "tablepositions.rds")
 View(table.positions)
 
 table.stages <- t(as.data.frame(lapply(results, function(x) sapply(x$models, function(m) {
   if (length(m) == 1) return(NA) else 
     num_stages(m)
 }))))
-saveRDS(table.stages, file = "tablestages.rds")
+if (save) saveRDS(table.stages, file = "tablestages.rds")
 View(table.stages)
 
 ########## train-test
@@ -125,7 +124,7 @@ table.logLik <- t(as.data.frame(lapply(results_1, function(x) sapply(x$models, f
   if (length(m) == 1) return(NA) else 
     sum(stagedtrees::prob(m, x$test, log = TRUE)) 
 }))))
-saveRDS(table.logLik, file = "tableloglik.rds")
+if (save) saveRDS(table.logLik, file = "tableloglik.rds")
 View(table.logLik)
 
 
@@ -143,50 +142,36 @@ ceg.plot(results$coronary$models$simple_total)
 
 ############  simulation experiments 
 
-experiment_2 <- function(data, lambda = 0, r_train = 1){
-  ix <- sample(seq(nrow(data)), size = nrow(data)*r_train)
-  train <- data[ix,]
-  test <-  data[-ix,]
-  print(colnames(data))
-  time.dag <- system.time(dag_hc <- bnlearn::hc(train))
-  dag_fitted <- bn.fit(dag_hc, data = train)
-  sevt_from_dag <- sevt_fit(as_sevt(dag_fitted), data = train, lambda = lambda)
-  time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = train,
-                                                                       alg = simple_marginal, join_unobserved = FALSE, lambda = lambda))
-  return(list(models = list(dag = sevt_from_dag, 
-                            greedy_marginal = greedy_marginal), 
-              time = list(
-                dag = time.dag,
-                greedy_marginal = time.greedy_marginal),
-              dag = dag_hc,
-              train = train,
-              test = test))
-}
 
-
-for (n in c(4,5,6,10)){
-  M <- 100
-  N <-100
-  Ntest <- 500
-  #n <- 5
-  q <- 0.3
+M <- 100  # number of repetitions
+#N <-100  # training sample size
+Ntest <- 500 # testing sample size
+n <- 5 # number of variables
+q <- 0.25 # parameter that control simple sevt generation
+for (N in c(10, 20, 50)){
   results <- t(replicate(M, {
-    true_simple <- random_simple_sevt(n, q)
-    plot(true_simple)
-    train <- as.data.frame(lapply(sample_from(true_simple, nsim = N), factor, levels = c("0","1")))
-    test <- as.data.frame(lapply(sample_from(true_simple, nsim = Ntest), factor, levels = c("0","1")))
-    #train <- train[, sample(ncol(train))]
-    res <- experiment(train, lambda = 1, r_train = 1)
-    true_simple <- sevt_fit(true_simple, data = test, lambda = 0)
+    true <- random_simple_sevt(n, q)
+    plot(true)
+    train <- as.data.frame(lapply(sample_from(true, nsim = N), factor, levels = c("0","1")))
+    test <- as.data.frame(lapply(sample_from(true, nsim = Ntest), factor, levels = c("0","1")))
+    train <- train[, sample(ncol(train))]
+    time.dag <- system.time(dag_hc <- bnlearn::hc(train))
+    dag_fitted <- bn.fit(dag_hc, data = train, method = "bayes")
+    time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = train,
+                              alg = simple_marginal, join_unobserved = FALSE, lambda = 1) )
     #ll_true <- sum(stagedtrees::prob(true_simple, test, log = TRUE)) 
-    sapply(res$models, function(m) {
-      if (length(m) == 1) return(NA) else 
-        #BIC(m)
-        sum(stagedtrees::prob(m, test, log = TRUE)) 
-    }) - logLik(full(test))
+    val <- c(
+      dag = logLik(dag_fitted, data = test),
+      greedy_marginal = sum(stagedtrees::prob(greedy_marginal, test, log = TRUE))
+    )
+    plot(greedy_marginal)
+    print(val)
+    val - logLik(full(test))
   }))
   
   colMeans(results)
   if (save) saveRDS(results, file = paste0(n, "_", N, "_", "simulation_results.rds"))
-  
 }
+
+
+
