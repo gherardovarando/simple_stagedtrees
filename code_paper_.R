@@ -2,8 +2,8 @@ library(stagedtrees)
 library(bnlearn)
 library(igraph)
 library(magrittr)
-library(arules)
 library(deal)
+library(arules)
 source("functions.R")
 source("search_order.R")
 
@@ -15,6 +15,8 @@ titanic.df <- as.data.frame(Titanic)
 titanic.df <- titanic.df[rep(row.names(titanic.df), titanic.df$Freq), 1:4]
 
 load("cachexia_data.RData")
+cachexia <- cbind(bnlearn::discretize(cachexia_data[,-7], breaks = 2),MC = as.factor(cachexia_data$MC))
+
 load("chds.RData")
 
 load("mathmarks.RData")
@@ -28,14 +30,15 @@ ksl[,4] <- discretize(ksl[,4],breaks=2)
 
 datasets <- list(
   asia = bnlearn::asia,
-  cachexia = cbind(discretizeDF(cachexia_data[,-7]),MC = as.factor(cachexia_data$MC)),
+  cachexia = cachexia,
   chds = chds,
   coronary = bnlearn::coronary,
   fall = readRDS("FallEld.rds"),
   ksl = ksl,
   mathmarks = mathmarks,
   phd = stagedtrees::PhDArticles,
-  titanic = titanic.df
+  titanic = titanic.df,
+  bank = readRDS("bank.rds")
 )
 
 
@@ -129,10 +132,10 @@ saveRDS(table.logLik, file = "tableloglik.rds")
 View(table.logLik)
 
 
-## CHDS PLOTS
-plot(results$chds$dag)
-plot(results$chds$models$simple_total)
-ceg.plot(results$chds$models$simple_total)
+## BANK PLOTS
+graphviz.plot(results$bank$dag)
+plot(results$bank$models$all_marginal)
+ceg.plot(results$bank$models$all_marginal)
 
 ## CORONARY PLOTS (TO DO)
 plot(results$coronary$dag)
@@ -187,6 +190,6 @@ for (n in c(4,5,6,10)){
   }))
   
   colMeans(results)
-  if (save) saveRDS(results, file = paste0(n, "_", N, "_", "simulation_results.rds"))
+ # if (save) saveRDS(results, file = paste0(n, "_", N, "_", "simulation_results.rds"))
   
 }
