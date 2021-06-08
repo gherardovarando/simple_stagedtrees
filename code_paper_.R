@@ -156,8 +156,8 @@ experiment_2 <- function(data, lambda = 0, r_train = 1){
   return(list(models = list(dag = sevt_from_dag, 
                             greedy_marginal = greedy_marginal), 
               time = list(
-                dag = time.dag,
-                greedy_marginal = time.greedy_marginal),
+              dag = time.dag,
+              greedy_marginal = time.greedy_marginal),
               dag = dag_hc,
               train = train,
               test = test))
@@ -166,24 +166,24 @@ experiment_2 <- function(data, lambda = 0, r_train = 1){
 
 for (n in c(4,5,6,10)){
   M <- 100
-  N <-100
-  Ntest <- 500
+  N <-5000
+  #Ntest <- 5000
   #n <- 5
   q <- 0.3
   results <- t(replicate(M, {
     true_simple <- random_simple_sevt(n, q)
     plot(true_simple)
     train <- as.data.frame(lapply(sample_from(true_simple, nsim = N), factor, levels = c("0","1")))
-    test <- as.data.frame(lapply(sample_from(true_simple, nsim = Ntest), factor, levels = c("0","1")))
+    #test <- as.data.frame(lapply(sample_from(true_simple, nsim = Ntest), factor, levels = c("0","1")))
     #train <- train[, sample(ncol(train))]
     res <- experiment(train, lambda = 1, r_train = 1)
-    true_simple <- sevt_fit(true_simple, data = test, lambda = 0)
+    #true_simple <- sevt_fit(true_simple, data = test, lambda = 0)
     #ll_true <- sum(stagedtrees::prob(true_simple, test, log = TRUE)) 
     sapply(res$models, function(m) {
       if (length(m) == 1) return(NA) else 
-        #BIC(m)
-        sum(stagedtrees::prob(m, test, log = TRUE)) 
-    }) - logLik(full(test))
+        BIC(m)
+        #sum(stagedtrees::prob(m, test, log = TRUE)) 
+    }) #- logLik(full(test))
   }))
   
   colMeans(results)
