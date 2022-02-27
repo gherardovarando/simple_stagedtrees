@@ -1,12 +1,41 @@
 library(stagedtrees)
 library(igraph)
 
+#' Simplify a stagedtree 
+#' 
+#' Function to simplify a staged tree model. 
+#' @param model an object of class \code{sevt}
+#' @return an object of class \code{sevt} 
+#'         representing the simplified model. 
+#'         The returned model will be fitted if the input \code{model} was. 
+#' @details The \code{simplify} function will produce the corresponding simple
+#'          staged tree, that is a staged tree where stages and positions are 
+#'          equivalent. 
+#'          To do so the function \code{ceg} is used to compute positions, and 
+#'          then the stages' vectors are replaced with the positions' vectors. 
+#'          The model is the re-fitted if the input was a fitted staged tree. 
+#'          
+#'          Despite the name, the simplified staged tree has always a number 
+#'          of stages greater or equal to the initial staged tree, thus it is 
+#'          a more complex statistical model. 
 simplify <- function(model){
   tmp_ceg <- stagedtrees::ceg(model)
   model$stages <- tmp_ceg$positions[-1]
-  return(stagedtrees::sevt_fit(model))
+  ## if model was fitted then refit it
+  if (stagedtrees:::is_fitted_sevt(model)){
+    model <- stagedtrees::sevt_fit(model)
+  }
+  return(model)
 }
 
+#' Marginal search of simple staged trees
+#' 
+#' @param object an object of class \code{sevt}.
+#' @param alg an algorithm to search stages, should accept the \code{scope} argument. 
+#' @param scope NULL.
+#' @param ... additional parameters passed to \code{alg}.
+#' @return an object of class \code{sevt}, the simple staged tree resulting 
+#'         from the search. 
 simple_marginal <- function(object,
                             alg = stages_bhc,
                             scope = NULL,
@@ -15,7 +44,7 @@ simple_marginal <- function(object,
   if (is.null(scope)){
     scope <- names(object$tree)[-1]
   }
-
+  
   order <- names(object$tree)
   for (v in scope){
     i <- seq_along(names(object$tree))[names(object$tree) == v]
@@ -33,6 +62,18 @@ simple_marginal <- function(object,
   return(object)
 }
 
+
+#' join positions in a staged tree model
+#' 
+#' @param model an object of class \code{sevt}.
+#' @param v the name of a variable in the model.
+#' @param s1 stage to join
+#' @param s2 stage to join
+#' @details this functions works similarly to the \code{join_stages}
+#' function in the \code{stagedtrees} package, but it also joins 
+#' downstream stages to make nodes with stages \code{s1,s2} in the same 
+#' position. This function works properly only when downstream variables 
+#' from \code{v} have full stages vectors. 
 join_positions <- function(model, v, s1, s2){
   i <- which(v == names(model$tree))
   order <- names(model$tree)
@@ -49,9 +90,15 @@ join_positions <- function(model, v, s1, s2){
   return(sevt_fit(model))
 }
 
-simple_total_bhc <- function (object, score = function(x) {
-  return(-BIC(x))
-}, max_iter = Inf) {
+#' Total BHC search of simple staged trees
+#' 
+#' @param object an object of class \code{sevt}.
+#' @param score a scroe to be maximized in the search.
+#' @return an object of class \code{sevt}, the simple staged tree resulting 
+#'         from the search. 
+simple_total_bhc <- function (object, 
+                              score = function(x) {return(-BIC(x))}, 
+                              max_iter = Inf) {
   now_score <- score(object)
   scope <- names(object$tree)[-1]
   for (v in scope) {
@@ -90,13 +137,7 @@ simple_total_bhc <- function (object, score = function(x) {
   return(object)
 }
 
-ceg.plot <- function(tree){
-  strut <- ceg(tree)
-  A <- ceg2adjmat(strut)
-  gr <- graph_from_adjacency_matrix(A)
-  plot.igraph(gr, layout = layout_as_tree, edge.arrow.size = 0.2)
-}
-
+#' obtain number of positions 
 num_positions <- function(tree){
   ceg <- ceg(tree)
   value <- 0
@@ -106,6 +147,7 @@ num_positions <- function(tree){
   value
 }
 
+#' obtain number of stages
 num_stages <- function(tree){
   value <- 1
   for(i in 1:length(tree$stages)){
@@ -114,6 +156,7 @@ num_stages <- function(tree){
   value
 }
 
+#' generate a random staged tree
 random_sevt <- function(n, k = 2){
   tree <- sapply(paste0("X", seq(n)), function(x) c("0","1"), 
                  USE.NAMES = TRUE, simplify = FALSE)
@@ -139,6 +182,7 @@ random_sevt <- function(n, k = 2){
   return(model)
 }
 
+#' generate a random simple staged tree
 random_simple_sevt <- function(n, q = 0.5){
   tree <- sapply(paste0("X", seq(n)), function(x) c("0","1"), 
                  USE.NAMES = TRUE, simplify = FALSE)
@@ -173,4 +217,22 @@ random_simple_sevt <- function(n, q = 0.5){
   attr(p, "n") <- 1
   model$prob <- c(list("X1" = list("1" = p)), model$prob)
   return(model)
+}
+
+
+search_all <- function(data, alg = stages_bhc, 
+                       search_score = BIC,
+                       join_unobserved = TRUE, lambda = 0, ...){
+  if (is.data.frame(data)){
+    vv <- colnames(data)
+  }
+  if (is.table(data)){
+    vv <- names(dimnames(data))
+  }
+  allres <- combinat::permn(vv, fun = function(order){
+    alg(full(data, order =  order, 
+             join_unobserved = join_unobserved, lambda = lambda))
+  })    
+  scores <- sapply(allres, search_score)
+  return(allres[[which.min(scores)]])
 }
