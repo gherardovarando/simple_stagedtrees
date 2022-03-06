@@ -7,6 +7,66 @@ library("xtable")
 
 source("functions.R")
 
+################ define experiment function ################
+experiment <- function(data, lambda = 0, verbose = FALSE){
+  if (verbose) print(colnames(data))
+  if (verbose) print(ncol(data))
+  time.dag <- system.time(dag_hc <- bnlearn::hc(data))
+  if (verbose) message("dag done")
+  dag_fitted <- bn.fit(dag_hc, data = data)
+  if (verbose) message("dag fit")
+  sevt_from_dag <- sevt_fit(as_sevt(dag_fitted), data = data, 
+                            lambda = lambda)
+  if (verbose) message("sevt from dag done")
+  order <- bnlearn::node.ordering(dag_hc)
+  model0 <- full(data, order, join_unobserved = FALSE, lambda = lambda)
+  if (verbose) message("full staged tree done")
+  time.simple_marginal <- system.time(marginal <- simple_marginal(model0))
+  if (verbose) message("marginal done")
+  time.simple_total <- system.time(total <- simple_total_bhc(model0))
+  if (verbose) message("total done")
+  time.sevt_bhc <- system.time(sevt_bhc <- stages_bhc(model0, ignore = FALSE))
+  if (verbose) message("bhc done")
+  time.simplify <- system.time(simplified <- simplify(sevt_bhc))
+  if (verbose) message("simplify done")
+  time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = data,
+                                                                       alg = simple_marginal, 
+                                                                       join_unobserved = FALSE, 
+                                                                       lambda = lambda))
+  if (verbose) message("greedy done")
+  if (ncol(data)<7){
+    time.all_marginal <- system.time(all_marginal <- search_all(data, alg = simple_marginal, 
+                                                                join_unobserved = FALSE, lambda = lambda))
+    if (verbose) message("all marginal done")
+    time.all_total <- system.time(all_total <- search_all(data, alg = simple_total_bhc, 
+                                                          join_unobserved = FALSE, lambda = lambda))
+    if (verbose) message("all total done")
+  }else{
+    time.all_marginal <- time.all_total <- NA
+    all_marginal <- all_total <- NA
+  }
+  return(list(models = list(dag = sevt_from_dag, 
+                            simple_marginal = marginal, 
+                            simple_total = total,
+                            sevt_bhc = sevt_bhc,
+                            simplified = simplified,
+                            greedy_marginal = greedy_marginal,
+                            all_marginal = all_marginal,
+                            all_total = all_total), 
+              time = list(
+                dag = time.dag,
+                simple_marginal = time.simple_marginal,
+                simple_total = time.simple_total,
+                sevt_bhc = time.sevt_bhc,
+                simplified = time.simplify,
+                greedy_marginal = time.greedy_marginal,
+                all_marginal = time.all_marginal,
+                all_total = time.all_total
+              ),
+              dag = dag_hc,
+              data = data))
+}
+
 ## change to TRUE to save results
 save <- TRUE
 save.latex <- TRUE
@@ -39,59 +99,9 @@ datasets <- list(
   titanic = titanic.df
 )
 
-################ define experiment function ################
-experiment <- function(data, lambda = 0, r_train = 1){
-  ix <- sample(seq(nrow(data)), size = nrow(data)*r_train)
-  train <- data[ix,]
-  test <-  data[-ix,]
-  print(colnames(data))
-  time.dag <- system.time(dag_hc <- bnlearn::hc(train))
-  dag_fitted <- bn.fit(dag_hc, data = train)
-  sevt_from_dag <- sevt_fit(as_sevt(dag_fitted), data = train, lambda = lambda)
-  order <- bnlearn::node.ordering(dag_hc)
-  model0 <- full(train, order, join_unobserved = FALSE, lambda = lambda)
-  time.simple_marginal <- system.time(marginal <- simple_marginal(model0))
-  time.simple_total <- system.time(total <- simple_total_bhc(model0))
-  time.sevt_bhc <- system.time(sevt_bhc <- stages_bhc(stndnaming(stages_bhc(model0, ignore = FALSE))))
-  time.simplify <- system.time(simplified <- simplify(sevt_bhc))
-  time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = train,
-                                                                       alg = simple_marginal, 
-                                                                       join_unobserved = FALSE, 
-                                                                       lambda = lambda))
-  if (ncol(data)<7){
-    time.all_marginal <- system.time(all_marginal <- search_all(train, alg = simple_marginal, 
-                                                                join_unobserved = FALSE, lambda = lambda)) 
-    time.all_total <- system.time(all_total <- search_all(train, alg = simple_total_bhc, 
-                                                          join_unobserved = FALSE, lambda = lambda))
-  }else{
-    time.all_marginal <- time.all_total <- NA
-    all_marginal <- all_total <- NA
-  }
-  return(list(models = list(dag = sevt_from_dag, 
-                            simple_marginal = marginal, 
-                            simple_total = total,
-                            sevt_bhc = sevt_bhc,
-                            simplified = simplified,
-                            greedy_marginal = greedy_marginal,
-                            all_marginal = all_marginal,
-                            all_total = all_total), 
-              time = list(
-                dag = time.dag,
-                simple_marginal = time.simple_marginal,
-                simple_total = time.simple_total,
-                sevt_bhc = time.sevt_bhc,
-                simplified = time.simplify,
-                greedy_marginal = time.greedy_marginal,
-                all_marginal = time.all_marginal,
-                all_total = time.all_total
-              ),
-              dag = dag_hc,
-              train = train,
-              test = test))
-}
 
 ######## run experiments
-results <- lapply(datasets, experiment, lambda = 0, r_train = 1)
+results <- lapply(datasets, experiment, lambda = 0)
 
 
 ######## collect results and print tables
@@ -177,14 +187,26 @@ if  (save.latex){
 
 ########## train-test
 
-results_1 <- lapply(datasets, experiment, lambda = 1, r_train = 0.5)
+results_1 <- lapply(datasets, experiment, lambda = 1)
 
 table.logLik <- t(as.data.frame(lapply(results_1, function(x) sapply(x$models, function(m) {
   if (length(m) == 1) return(NA) else 
     sum(stagedtrees::prob(m, x$test, log = TRUE)) 
 }))))
 if (save) saveRDS(table.logLik, file = "tableloglik.rds")
-View(table.logLik)
+if  (save.latex){
+  colnames(table.loglik) <- prettynames
+  tmp <- xtable(table.loglik,
+                align = c("l", rep("r", 8)),
+                digits = 3,
+                label = "table:loglik",
+                caption = "Predictive log-likelihood for the models reported 
+                           in Table \\ref{table:bic}. The results are based on 
+                           a single random split of the data into 50\\% training 
+                           and 50\\% test")
+  print(tmp, booktabs = TRUE, file = "time.table.tex", scalebox = 0.77)
+}
+
 
 
 ## CHDS PLOTS
@@ -199,35 +221,7 @@ ceg.plot(results$coronary$models$simple_total)
 
 
 
-############  simulation experiments 
 
-
-M <- 10  # number of repetitions
-#N <-1000  # training sample size
-Ntest <- 5000 # testing sample size
-n <- 5 # number of variables
-q <- 0.5 # parameter that control simple sevt generation
-for (N in c(5000)){
-  results <- t(replicate(M, {
-    true <- random_simple_sevt(n, q)
-    train <- as.data.frame(lapply(sample_from(true, nsim = N), factor, levels = c("0","1")))
-    test <- as.data.frame(lapply(sample_from(true, nsim = Ntest), factor, levels = c("0","1")))
-    train <- train[, sample(ncol(train))]
-    time.dag <- system.time(dag_hc <- bnlearn::hc(train))
-    dag_fitted <- bn.fit(dag_hc, data = train, method = "bayes")
-    time.greedy_marginal <- system.time(greedy_marginal <- search_greedy(data = train,
-                              alg = simple_marginal, join_unobserved = FALSE, lambda = 0) )
-    ll_true <- sum(stagedtrees::prob(true, test, log = TRUE)) 
-    val <- c(
-      dag = logLik(dag_fitted, data = test),
-      greedy_marginal = sum(stagedtrees::prob(greedy_marginal, test, log = TRUE))
-    )
-    val - ll_true
-  }))
-  
-  colMeans(results)
-  if (save) saveRDS(results, file = paste0(n, "_", N, "_", "simulation_results.rds"))
-}
 
 
 

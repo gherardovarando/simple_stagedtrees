@@ -184,7 +184,7 @@ random_sevt <- function(n, k = 2){
 
 #' generate a random simple staged tree
 random_simple_sevt <- function(n, q = 0.5){
-  tree <- sapply(paste0("X", seq(n)), function(x) c("0","1"), 
+  tree <- sapply(paste0("X", seq(n)), function(x) c("a","b"), 
                  USE.NAMES = TRUE, simplify = FALSE)
   model <- sevt(tree)
   model$stages$X2 <- sample(c("1", "2"), replace = TRUE)
@@ -204,16 +204,16 @@ random_simple_sevt <- function(n, q = 0.5){
   model$prob <- list()
   model$prob <- lapply(model$stages, function(stages){
     sapply(unique(stages), FUN = function(s){
-      p <- c(runif(1, max = 1),runif(1, max = 5)) 
-      p <- sample(p) / sum(p)
-      names(p) <- c("0", "1")
+      p <- runif(2) 
+      p <- p / sum(p)
+      names(p) <- c("a", "b")
       attr(p, "n") <- 1
       return(p)
     }, simplify = FALSE, USE.NAMES = TRUE)
   })
   p <- runif(2) 
   p <- p / sum(p)
-  names(p) <- c("0", "1")
+  names(p) <- c("a", "b")
   attr(p, "n") <- 1
   model$prob <- c(list("X1" = list("1" = p)), model$prob)
   return(model)
@@ -236,3 +236,5 @@ search_all <- function(data, alg = stages_bhc,
   scores <- sapply(allres, search_score)
   return(allres[[which.min(scores)]])
 }
+
+
